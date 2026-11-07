@@ -1,0 +1,8 @@
+# Secrets : jamais versionnés
+*.key
+*.pem
+id_*
+.env
+.vault_pass*
+vault_password*
+*.retry
