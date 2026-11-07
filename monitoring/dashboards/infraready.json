@@ -1,0 +1,59 @@
+{
+  "uid": "infraready",
+  "title": "InfraReady - Supervision",
+  "schemaVersion": 39,
+  "time": {"from": "now-1h", "to": "now"},
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Disponibilite des machines",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus-infraready"},
+      "targets": [{"refId": "A", "expr": "up{job=~\"linux|windows\"}", "legendFormat": "{{host}}"}],
+      "fieldConfig": {"defaults": {
+        "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}],
+        "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+      }, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "CPU utilise (%)",
+      "gridPos": {"x": 0, "y": 5, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus-infraready"},
+      "targets": [
+        {"refId": "A", "expr": "100 - avg by (host) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100", "legendFormat": "{{host}}"},
+        {"refId": "B", "expr": "sum by (host) (rate(windows_cpu_processor_utility_total[2m])) / sum by (host) (rate(windows_cpu_processor_rtc_total[2m])) * 100", "legendFormat": "{{host}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100,
+        "custom": {"thresholdsStyle": {"mode": "dashed"}},
+        "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 80}]}
+      }, "overrides": []}
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Memoire utilisee (%)",
+      "gridPos": {"x": 12, "y": 5, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus-infraready"},
+      "targets": [
+        {"refId": "A", "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100", "legendFormat": "{{host}}"},
+        {"refId": "B", "expr": "(1 - windows_memory_available_bytes / windows_memory_physical_total_bytes) * 100", "legendFormat": "{{host}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100,
+        "custom": {"thresholdsStyle": {"mode": "dashed"}},
+        "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 80}]}
+      }, "overrides": []}
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Disque utilise (%)",
+      "gridPos": {"x": 0, "y": 13, "w": 24, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus-infraready"},
+      "targets": [
+        {"refId": "A", "expr": "100 - node_filesystem_avail_bytes{mountpoint=~\"/|/mnt/labdata\"} / node_filesystem_size_bytes{mountpoint=~\"/|/mnt/labdata\"} * 100", "legendFormat": "{{host}} {{mountpoint}}"},
+        {"refId": "B", "expr": "100 - windows_logical_disk_free_bytes{volume=~\"C:|L:\"} / windows_logical_disk_size_bytes{volume=~\"C:|L:\"} * 100", "legendFormat": "{{host}} {{volume}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100,
+        "custom": {"thresholdsStyle": {"mode": "dashed"}},
+        "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 80}]}
+      }, "overrides": []}
+    }
+  ]
+}
