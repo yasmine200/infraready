@@ -1,0 +1,61 @@
+---
+- name: Configuration de base des serveurs Linux
+  hosts: linux
+  become: true
+  tasks:
+    - name: Installer les paquets de base
+      ansible.builtin.apt:
+        name: "{{ paquets_base }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Garantir le groupe d'administration du site
+      ansible.builtin.group:
+        name: "{{ groupe_web }}"
+        state: present
+
+    - name: Garantir le repertoire du site et ses droits
+      ansible.builtin.file:
+        path: "{{ site_root }}"
+        state: directory
+        owner: root
+        group: "{{ groupe_web }}"
+        mode: "2775"
+
+    - name: Deployer la page d'accueil
+      ansible.builtin.copy:
+        dest: "{{ site_root }}/index.html"
+        content: "<h1>InfraReady - {{ inventory_hostname | upper }}</h1>\n<p>Page geree par Ansible</p>\n"
+        owner: root
+        group: "{{ groupe_web }}"
+        mode: "0664"
+
+    - name: Deployer la banniere de connexion
+      ansible.builtin.copy:
+        dest: /etc/motd
+        content: "{{ banniere }}\n"
+        mode: "0644"
+
+    - name: Garantir que nginx est demarre et active
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+  post_tasks:
+    - name: Verifier que le site repond
+      ansible.builtin.uri:
+        url: http://localhost/
+        return_content: true
+      register: page
+      failed_when: "'InfraReady' not in page.content"
+
+    - name: Mesurer l'espace disque de /
+      ansible.builtin.command: df --output=pcent /
+      register: disque
+      changed_when: false
+
+    - name: Afficher le resultat des controles
+      ansible.builtin.debug:
+        msg: "Site OK (HTTP {{ page.status }}), disque / utilise : {{ disque.stdout_lines[1] | trim }}"

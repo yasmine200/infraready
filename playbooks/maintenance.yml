@@ -1,0 +1,48 @@
+---
+- name: Maintenance controlee des serveurs Linux
+  hosts: linux
+  become: true
+  serial: 1
+  vars:
+    seuil_libre_min: 20
+    services_critiques:
+      - nginx
+      - node_exporter
+  pre_tasks:
+    - name: Mesurer l'espace libre sur /
+      ansible.builtin.shell: df --output=pcent / | tail -1 | tr -dc '0-9'
+      register: occupation
+      changed_when: false
+
+    - name: Refuser la maintenance si l'espace libre est insuffisant
+      ansible.builtin.assert:
+        that: (100 - (occupation.stdout | int)) >= seuil_libre_min
+        fail_msg: "Espace libre insuffisant sur / ({{ 100 - (occupation.stdout | int) }} %) : maintenance annulee"
+        success_msg: "Espace libre suffisant ({{ 100 - (occupation.stdout | int) }} %)"
+
+  tasks:
+    - name: Mettre a jour le cache et appliquer les mises a jour
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+      register: maj
+
+    - name: Verifier si un redemarrage est necessaire
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_requis
+
+  post_tasks:
+    - name: Verifier les services critiques
+      ansible.builtin.command: systemctl is-active {{ item }}
+      loop: "{{ services_critiques }}"
+      register: etat_services
+      changed_when: false
+
+    - name: Rapport de maintenance
+      ansible.builtin.debug:
+        msg:
+          - "Mises a jour appliquees : {{ 'oui' if maj.changed else 'aucune' }}"
+          - "Redemarrage necessaire : {{ 'OUI - a planifier manuellement' if reboot_requis.stat.exists else 'non' }}"
+          - "Services : {{ etat_services.results | map(attribute='stdout') | list }}"

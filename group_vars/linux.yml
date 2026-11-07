@@ -1,0 +1,9 @@
+paquets_base:
+  - htop
+  - curl
+  - tree
+groupe_web: webadmins
+site_root: /srv/infraready/site
+banniere: "Serveur InfraReady - acces reserve aux administrateurs autorises"
+# Ubuntu 26.04 utilise sudo-rs par defaut : Ansible passe par le sudo classique (sudo.ws)
+ansible_become_exe: sudo.ws
