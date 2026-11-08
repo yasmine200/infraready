@@ -1,0 +1,41 @@
+---
+- name: Configuration de base du serveur Windows
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Garantir le dossier de partage
+      ansible.windows.win_file:
+        path: "{{ partage }}"
+        state: directory
+
+    - name: Deployer le fichier d'information du partage
+      ansible.windows.win_copy:
+        dest: "{{ partage }}\\LISEZMOI.txt"
+        content: "Partage de l'equipe d'exploitation - fichier gere par Ansible\r\n"
+
+    - name: Garantir que le collecteur de metriques est demarre et automatique
+      ansible.windows.win_service:
+        name: windows_exporter
+        state: started
+        start_mode: auto
+
+    - name: Garantir que le service DNS est demarre
+      ansible.windows.win_service:
+        name: DNS
+        state: started
+
+  post_tasks:
+    - name: Verifier la resolution DNS du domaine
+      ansible.windows.win_shell: (Resolve-DnsName win-dc01.infraready.test -Type A).IPAddress
+      register: dns
+      changed_when: false
+      failed_when: "'192.168.50.10' not in dns.stdout"
+
+    - name: Mesurer l'espace libre sur C
+      ansible.windows.win_shell: "[math]::Round((Get-PSDrive C).Free / 1GB, 1)"
+      register: libre
+      changed_when: false
+
+    - name: Afficher le resultat des controles
+      ansible.builtin.debug:
+        msg: "DNS OK ({{ dns.stdout | trim }}), espace libre sur C : {{ libre.stdout | trim }} Go"
