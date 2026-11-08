@@ -1,0 +1,45 @@
+name: Validation InfraReady
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer les outils de validation
+        run: pip install ansible-core yamllint
+
+      - name: Verifier le style YAML (yamllint)
+        run: yamllint .
+
+      - name: Verifier la syntaxe des playbooks Ansible
+        run: |
+          for p in playbooks/*.yml; do
+            ansible-playbook "$p" --syntax-check
+          done
+
+      - name: Verifier les fichiers de supervision
+        run: |
+          python -m json.tool monitoring/dashboards/infraready.json > /dev/null
+          docker run --rm --entrypoint promtool -v "$PWD/monitoring:/m" prom/prometheus:v2.53.0 check rules /m/rules/infraready.yml
+
+      - name: Verifier l'absence de secrets
+        run: |
+          if grep -rEn "(BEGIN [A-Z ]*PRIVATE KEY|password\s*[:=]\s*\S+)" --exclude-dir=.git .; then
+            echo "Secret potentiel detecte" && exit 1
+          fi
+          echo "Aucun secret detecte"
